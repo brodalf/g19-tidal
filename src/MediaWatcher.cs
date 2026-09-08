@@ -26,7 +26,14 @@ public sealed class MediaWatcher
 
     public NowPlaying Current => _current;
 
-    public GlobalSystemMediaTransportControlsSession? Session { get; private set; }
+    // Written by the poller, read by the render thread when a transport button is pressed.
+    private volatile GlobalSystemMediaTransportControlsSession? _session;
+
+    public GlobalSystemMediaTransportControlsSession? Session
+    {
+        get => _session;
+        private set => _session = value;
+    }
 
     public async Task RunAsync(CancellationToken ct)
     {

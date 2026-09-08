@@ -92,18 +92,32 @@ public sealed class LcdRenderer : IDisposable
 
         if (np.Artwork is null) return;
 
+        // Built into locals and only published once both succeeded. Assigning _art first and
+        // then failing in BuildBackground would strand a live GDI bitmap on every such track.
+        Bitmap? art = null;
+        Bitmap? background = null;
+
         try
         {
             using var ms = new MemoryStream(np.Artwork);
             using var source = new Bitmap(ms);
-            _art = ScaleToCover(source, ArtSize, ArtSize);
-            _background = BuildBackground(source);
+
+            art = ScaleToCover(source, ArtSize, ArtSize);
+            background = BuildBackground(source);
+
+            (_art, _background) = (art, background);
+            (art, background) = (null, null);
         }
         catch
         {
             // Corrupt or unsupported thumbnail - fall back to the plain black screen.
             _art = null;
             _background = null;
+        }
+        finally
+        {
+            art?.Dispose();
+            background?.Dispose();
         }
     }
 
