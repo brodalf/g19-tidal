@@ -24,8 +24,18 @@ public sealed record NowPlaying
     public TimeSpan Position { get; init; }
     public TimeSpan Duration { get; init; }
 
-    /// <summary>When <see cref="Position"/> was sampled, used to interpolate between polls.</summary>
+    /// <summary>When this snapshot was taken.</summary>
     public DateTimeOffset CapturedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// When the player last actually moved <see cref="Position"/>, from the SMTC timeline's
+    /// own LastUpdatedTime.
+    ///
+    /// This must not be the poll time. Players are free to refresh their timeline rarely -
+    /// TIDAL does - and anchoring to the poll instead resets the interpolated part on every
+    /// poll, which freezes the elapsed time on screen at whatever the player last reported.
+    /// </summary>
+    public DateTimeOffset PositionAnchor { get; init; } = DateTimeOffset.UtcNow;
 
     /// <summary>Encoded (JPEG/PNG) cover art, or null when the session exposes none.</summary>
     public byte[]? Artwork { get; init; }
@@ -39,7 +49,7 @@ public sealed record NowPlaying
         get
         {
             if (!IsPlaying) return Clamp(Position);
-            var elapsed = DateTimeOffset.UtcNow - CapturedAt;
+            var elapsed = DateTimeOffset.UtcNow - PositionAnchor;
             if (elapsed < TimeSpan.Zero) elapsed = TimeSpan.Zero;
             return Clamp(Position + elapsed);
         }

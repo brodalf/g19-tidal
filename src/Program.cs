@@ -5,6 +5,7 @@ internal static class Program
     private const int TargetFps = 15;
 
     private static MediaWatcher _watcher = null!;
+    private static bool _verbose;
 
     private static int Main(string[] args)
     {
@@ -15,6 +16,7 @@ internal static class Program
         }
 
         var anySource = args.Contains("--any");
+        _verbose = args.Contains("--verbose");
 
         Console.WriteLine("G19Tidal - TIDAL auf dem Logitech G19 LCD");
         Console.WriteLine(anySource
@@ -77,6 +79,7 @@ internal static class Program
         var buttons = new ButtonReader();
         var lastStatus = "";
         var warnedDisconnected = false;
+        var nextVerbose = DateTime.UtcNow;
 
         while (!ct.IsCancellationRequested)
         {
@@ -113,6 +116,16 @@ internal static class Program
             {
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {status}");
                 lastStatus = status;
+            }
+
+            if (_verbose && DateTime.UtcNow >= nextVerbose)
+            {
+                nextVerbose = DateTime.UtcNow.AddSeconds(2);
+                Console.WriteLine(
+                    $"[{DateTime.Now:HH:mm:ss}] gemeldet={np.Position:mm\\:ss} " +
+                    $"angezeigt={np.EffectivePosition:mm\\:ss} " +
+                    $"laenge={np.Duration:mm\\:ss} " +
+                    $"anker vor {(DateTimeOffset.UtcNow - np.PositionAnchor).TotalSeconds:0.0}s");
             }
 
             var elapsed = DateTime.UtcNow - frameStart;
@@ -162,6 +175,7 @@ internal static class Program
 
               G19Tidal.exe [--any]
 
+              --verbose Position und Ankerzeit mitloggen (Fehlersuche)
               --any     Beliebige Medienquelle anzeigen, nicht nur TIDAL
                         (Spotify, Firefox, YouTube im Browser, ...)
               --help    Diese Hilfe

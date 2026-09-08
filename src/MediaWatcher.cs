@@ -96,8 +96,20 @@ public sealed class MediaWatcher
             Position = timeline.Position,
             Duration = timeline.EndTime - timeline.StartTime,
             CapturedAt = DateTimeOffset.UtcNow,
+            PositionAnchor = Anchor(timeline.LastUpdatedTime),
             Artwork = _artworkBytes,
         };
+    }
+
+    /// <summary>
+    /// Falls back to now when the player leaves LastUpdatedTime unset, and refuses anchors in
+    /// the future or absurdly far in the past - either would make the elapsed time jump.
+    /// </summary>
+    private static DateTimeOffset Anchor(DateTimeOffset lastUpdated)
+    {
+        var now = DateTimeOffset.UtcNow;
+        if (lastUpdated == default || lastUpdated > now) return now;
+        return now - lastUpdated > TimeSpan.FromHours(12) ? now : lastUpdated;
     }
 
     private GlobalSystemMediaTransportControlsSession? PickSession(
