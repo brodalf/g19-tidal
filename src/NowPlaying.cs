@@ -41,6 +41,13 @@ public sealed record NowPlaying
     public byte[]? Artwork { get; init; }
 
     /// <summary>
+    /// Hash of <see cref="Artwork"/>. The cover can change while the track does not - a late
+    /// image replacing the previous track's - so the renderer keys its cached bitmaps on this
+    /// as well as on <see cref="Key"/>.
+    /// </summary>
+    public long ArtworkTag { get; init; }
+
+    /// <summary>
     /// Playback position extrapolated to now. SMTC only refreshes its timeline every
     /// second or so; without this the progress bar visibly stutters.
     /// </summary>

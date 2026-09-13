@@ -19,8 +19,19 @@ public sealed class MediaWatcher
     private readonly bool _anySource;
     private volatile NowPlaying _current = NowPlaying.None;
 
+    /// <summary>
+    /// How long after a track change to keep re-reading the cover.
+    ///
+    /// TIDAL does not update its SMTC fields atomically: title and artist frequently flip to
+    /// the new track while the thumbnail still belongs to the previous one. Reading the cover
+    /// once on the change therefore caches the wrong image for the entire track.
+    /// </summary>
+    private static readonly TimeSpan ArtworkSettleWindow = TimeSpan.FromSeconds(12);
+
     private string _artworkKey = "";
     private byte[]? _artworkBytes;
+    private long _artworkTag;
+    private DateTimeOffset _artworkKeyChangedAt = DateTimeOffset.MinValue;
 
     public MediaWatcher(bool anySource) => _anySource = anySource;
 
@@ -87,8 +98,24 @@ public sealed class MediaWatcher
 
         if (key != _artworkKey)
         {
-            _artworkBytes = props is null ? null : await TryReadThumbnailAsync(props, ct);
             _artworkKey = key;
+            _artworkKeyChangedAt = DateTimeOffset.UtcNow;
+            _artworkBytes = null;
+            _artworkTag = 0;
+        }
+
+        // Keep re-reading briefly after a change and adopt the image whenever it actually
+        // differs, so a cover that arrives late still replaces the stale one.
+        if (props is not null && DateTimeOffset.UtcNow - _artworkKeyChangedAt < ArtworkSettleWindow)
+        {
+            var bytes = await TryReadThumbnailAsync(props, ct);
+            var tag = Fingerprint(bytes);
+
+            if (tag != _artworkTag)
+            {
+                _artworkBytes = bytes;
+                _artworkTag = tag;
+            }
         }
 
         _current = new NowPlaying
@@ -105,7 +132,24 @@ public sealed class MediaWatcher
             CapturedAt = DateTimeOffset.UtcNow,
             PositionAnchor = Anchor(timeline.LastUpdatedTime),
             Artwork = _artworkBytes,
+            ArtworkTag = _artworkTag,
         };
+    }
+
+    /// <summary>
+    /// FNV-1a over the encoded image. Computed once per read so the renderer can tell a
+    /// genuinely new cover from the same one, without hashing on every frame.
+    /// </summary>
+    private static long Fingerprint(byte[]? bytes)
+    {
+        if (bytes is null || bytes.Length == 0) return 0;
+
+        unchecked
+        {
+            var hash = 1469598103934665603L;
+            foreach (var b in bytes) hash = (hash ^ b) * 1099511628211L;
+            return hash == 0 ? 1 : hash;
+        }
     }
 
     /// <summary>

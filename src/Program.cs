@@ -125,7 +125,8 @@ internal static class Program
                     $"[{DateTime.Now:HH:mm:ss}] gemeldet={np.Position:mm\\:ss} " +
                     $"angezeigt={np.EffectivePosition:mm\\:ss} " +
                     $"laenge={np.Duration:mm\\:ss} " +
-                    $"anker vor {(DateTimeOffset.UtcNow - np.PositionAnchor).TotalSeconds:0.0}s");
+                    $"anker vor {(DateTimeOffset.UtcNow - np.PositionAnchor).TotalSeconds:0.0}s " +
+                    $"cover={(np.Artwork?.Length ?? 0)}B tag={np.ArtworkTag:X8}");
             }
 
             var elapsed = DateTime.UtcNow - frameStart;

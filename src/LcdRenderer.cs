@@ -41,6 +41,7 @@ public sealed class LcdRenderer : IDisposable
     private readonly StringFormat _sf = new(StringFormat.GenericTypographic) { FormatFlags = StringFormatFlags.NoWrap };
 
     private string _artKey = " ";
+    private long _artTag = -1;
     private Bitmap? _art;
     private Bitmap? _background;
     private DateTime _trackStartedAt = DateTime.UtcNow;
@@ -80,10 +81,15 @@ public sealed class LcdRenderer : IDisposable
 
     private void EnsureArtwork(NowPlaying np)
     {
-        if (np.Key == _artKey) return;
+        // Both halves matter: a new track, or a corrected cover arriving for the current one.
+        if (np.Key == _artKey && np.ArtworkTag == _artTag) return;
+
+        // Only a genuine track change restarts the marquee; swapping in a late cover must not
+        // yank the scrolling text back to the beginning.
+        if (np.Key != _artKey) _trackStartedAt = DateTime.UtcNow;
 
         _artKey = np.Key;
-        _trackStartedAt = DateTime.UtcNow;
+        _artTag = np.ArtworkTag;
 
         _art?.Dispose();
         _background?.Dispose();
