@@ -34,7 +34,7 @@ internal static class Program
             return 2;
         }
 
-        if (!LogitechLcd.LogiLcdInit("TIDAL", LogitechLcd.TypeColor))
+        if (!LogitechLcd.Connect("TIDAL"))
         {
             Console.Error.WriteLine(
                 "LogiLcdInit fehlgeschlagen. Laeuft die Logitech Gaming Software (LCore.exe)?");
@@ -79,6 +79,7 @@ internal static class Program
         var buttons = new ButtonReader();
         var lastStatus = "";
         var warnedDisconnected = false;
+        var disconnectedSince = DateTime.UtcNow;
         var nextVerbose = DateTime.UtcNow;
 
         while (!ct.IsCancellationRequested)
@@ -91,6 +92,16 @@ internal static class Program
                 {
                     Console.WriteLine("Warte auf das G19-Display ...");
                     warnedDisconnected = true;
+                    disconnectedSince = DateTime.UtcNow;
+                }
+
+                // A registration that never took, or an LGS restart underneath us, stays
+                // disconnected for good unless we register again.
+                if (DateTime.UtcNow - disconnectedSince > TimeSpan.FromSeconds(15))
+                {
+                    Console.WriteLine("Registriere neu bei LGS ...");
+                    LogitechLcd.Reconnect("TIDAL");
+                    disconnectedSince = DateTime.UtcNow;
                 }
 
                 Sleep(TimeSpan.FromSeconds(1), ct);
